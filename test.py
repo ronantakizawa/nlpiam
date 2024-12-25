@@ -1,4 +1,4 @@
-from src.iam_manager import NaturalLanguageIAMManager
+from nlpiam.iam_manager import NaturalLanguageIAMManager
 
 manager = NaturalLanguageIAMManager()
 

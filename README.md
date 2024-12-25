@@ -1,44 +1,58 @@
-# Natural Language IAM Manager
+# Natural Language IAM Manager (nlpiam)
 
-This tool allows you to manage AWS IAM resources using natural language commands.
+A command-line tool that allows you to manage AWS IAM using natural language commands.
 
 ## Installation
 
-1. Clone the repository
-2. Install dependencies:
 ```bash
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
+pip install nlpiam
 ```
 
-3. Configure AWS credentials:
-   - Create a `.env` file based on `.env.example`
-   - Or set up AWS credentials using AWS CLI: `aws configure`
+## Configuration
+
+Create a `.env` file in your home directory with your credentials:
+
+```env
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_DEFAULT_REGION=us-east-1
+OPENAI_API_KEY=your_openai_key
+```
+
+Or set them using the CLI:
+
+```bash
+nlpiam config set aws-access-key YOUR_KEY
+nlpiam config set aws-secret-key YOUR_SECRET
+nlpiam config set aws-region us-east-1
+nlpiam config set openai-key YOUR_OPENAI_KEY
+```
 
 ## Usage
 
-```python
-from src.iam_manager import NaturalLanguageIAMManager
-
-# Initialize the manager
-iam_manager = NaturalLanguageIAMManager()
-
-# Process a request
-result = iam_manager.process_request("Create a new user named john_doe")
-print(result)
-```
-
-## Supported Commands
-
-- Create user: "Create a new user named {username}"
-- Delete user: "Delete user {username}"
-- Add policy: "Add {policy_name} policy to {username}"
-- Remove policy: "Remove {policy_name} policy from {username}"
-- List users: "List all users"
-- List policies: "List all policies"
-
-## Running Tests
-
 ```bash
-pytest src/test_iam_manager.py
+# Create a new user
+nlpiam "Create a new user named john_doe"
+
+# Add a policy
+nlpiam "Add ReadOnlyAccess policy to john_doe"
+
+# List users
+nlpiam "List all users"
+
+# Remove a policy
+nlpiam "Remove ReadOnlyAccess policy from john_doe"
+
+# Delete a user
+nlpiam "Delete user john_doe"
+
+# Get an explanation of what a command will do
+nlpiam explain "Add AdminAccess policy to john_doe"
 ```
+
+## Features
+
+- Natural language interface for IAM management
+- Secure credential management
+- Command explanation before execution
+- Support for all basic IAM operations

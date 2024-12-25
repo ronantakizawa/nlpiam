@@ -2,7 +2,7 @@ import boto3
 import json
 from typing import Dict, Tuple
 from openai import OpenAI
-import config
+import nlpiam.config as config
 
 class NaturalLanguageIAMManager:
     def __init__(self):

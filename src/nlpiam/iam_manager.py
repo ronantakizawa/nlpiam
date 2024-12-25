@@ -2,7 +2,7 @@ import boto3
 import json
 from typing import Dict, Tuple
 from openai import OpenAI
-import nlpiam.config as config
+from . import config
 
 class NaturalLanguageIAMManager:
     def __init__(self):
@@ -22,27 +22,32 @@ class NaturalLanguageIAMManager:
             'add_policy': ['username', 'policy_name'],
             'remove_policy': ['username', 'policy_name'],
             'list_users': [],
-            'list_policies': []
+            'list_policies': [],
+            'create_group': ['group_name'],
+            'delete_group': ['group_name'],
+            'add_user_to_group': ['username', 'group_name'],
+            'remove_user_from_group': ['username', 'group_name'],
+            'create_access_key': ['username'],
+            'list_access_keys': ['username'],
+            'rotate_access_key': ['username'],
+            'audit_mfa': [],
+            'audit_access_keys': [],
+            'audit_admin_users': []
         }
 
     def parse_request(self, request: str) -> Tuple[str, Dict[str, str]]:
-        """
-        Parse natural language request using OpenAI API to determine action and parameters.
-        """
+        """Parse natural language request using OpenAI API."""
         system_prompt = """
         You are an AWS IAM expert that helps parse natural language requests into structured commands.
-        You should return a JSON object with two fields:
-        1. "action": One of ["create_user", "delete_user", "add_policy", "remove_policy", "list_users", "list_policies"]
-        2. "params": A dictionary containing relevant parameters (username, policy_name)
-        
-        Example responses:
-        For "Create a new user named john_doe":
-        {"action": "create_user", "params": {"username": "john_doe"}}
-        
-        For "Add ReadOnlyAccess policy to john_doe":
-        {"action": "add_policy", "params": {"username": "john_doe", "policy_name": "ReadOnlyAccess"}}
-        
-        Only return the JSON object, nothing else.
+        Return a JSON object with:
+        1. "action": One of the supported actions
+        2. "params": A dictionary containing relevant parameters
+
+        Examples:
+        - "Create a new user named john_doe" -> {"action": "create_user", "params": {"username": "john_doe"}}
+        - "Add ReadOnlyAccess policy to john_doe" -> {"action": "add_policy", "params": {"username": "john_doe", "policy_name": "ReadOnlyAccess"}}
+        - "Add policy ReadOnlyAccess to group developers" -> {"action": "add_policy_to_group", "params": {"group_name": "developers", "policy_name": "ReadOnlyAccess"}}
+        - "Create access key for john_doe" -> {"action": "create_access_key", "params": {"username": "john_doe"}}
         """
 
         try:
@@ -60,7 +65,6 @@ class NaturalLanguageIAMManager:
             action = parsed['action']
             params = parsed['params']
             
-            # Validate the action and parameters
             if action not in self.supported_actions:
                 raise ValueError(f"Unsupported action: {action}")
                 
@@ -75,9 +79,32 @@ class NaturalLanguageIAMManager:
         except Exception as e:
             raise ValueError(f"Failed to parse request: {str(e)}")
 
+    def process_request(self, request: str) -> Dict:
+        """Process a natural language request from start to finish."""
+        try:
+            action, params = self.parse_request(request)
+            result = self.execute_action(action, params)
+            return result
+        except Exception as e:
+            return {'error': str(e)}
+
+    def explain_action(self, request: str) -> str:
+        """Use OpenAI to explain what action will be taken."""
+        try:
+            response = self.openai_client.chat.completions.create(
+                model=config.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are an AWS IAM expert. Explain what this IAM request will do in simple terms."},
+                    {"role": "user", "content": request}
+                ],
+                temperature=0
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"Failed to explain request: {str(e)}"
+
     def execute_action(self, action: str, params: Dict[str, str]) -> Dict:
         """Execute the requested IAM action with given parameters."""
-        # First validate the action
         if action not in self.supported_actions:
             raise ValueError(f"Unknown action: {action}")
             
@@ -89,21 +116,9 @@ class NaturalLanguageIAMManager:
                 )
                 
             elif action == 'delete_user':
-                if config.FORCE_DESTROY:
-                    # First remove all attached policies
-                    attached_policies = self.iam_client.list_attached_user_policies(
-                        UserName=params['username']
-                    )
-                    for policy in attached_policies.get('AttachedPolicies', []):
-                        self.iam_client.detach_user_policy(
-                            UserName=params['username'],
-                            PolicyArn=policy['PolicyArn']
-                        )
-                
-                return self.iam_client.delete_user(UserName=params['username'])
+                return self._delete_user_with_cleanup(params['username'])
                 
             elif action == 'add_policy':
-                # First get the policy ARN
                 policies = self.iam_client.list_policies()
                 policy_arn = None
                 for policy in policies['Policies']:
@@ -141,39 +156,88 @@ class NaturalLanguageIAMManager:
             elif action == 'list_policies':
                 return self.iam_client.list_policies()
                 
+            elif action == 'create_group':
+                return self.iam_client.create_group(GroupName=params['group_name'])
+                
+            elif action == 'delete_group':
+                return self.iam_client.delete_group(GroupName=params['group_name'])
+                
+            elif action == 'add_user_to_group':
+                return self.iam_client.add_user_to_group(
+                    UserName=params['username'],
+                    GroupName=params['group_name']
+                )
+                
+            elif action == 'remove_user_from_group':
+                return self.iam_client.remove_user_from_group(
+                    UserName=params['username'],
+                    GroupName=params['group_name']
+                )
+                
+            elif action == 'create_access_key':
+                return self.iam_client.create_access_key(UserName=params['username'])
+                
+            elif action == 'list_access_keys':
+                return self.iam_client.list_access_keys(UserName=params['username'])
+                
+            elif action == 'rotate_access_key':
+                return self._rotate_access_key(params['username'])
+                
+            else:
+                raise ValueError(f"Action {action} not implemented")
+                
         except Exception as e:
             return {'error': str(e)}
 
-    def process_request(self, request: str) -> Dict:
-        """Process a natural language request from start to finish."""
+    def _delete_user_with_cleanup(self, username: str) -> Dict:
+        """Delete a user and clean up their resources."""
         try:
-            action, params = self.parse_request(request)
-            result = self.execute_action(action, params)
-            return result
+            # Remove from groups
+            groups = self.iam_client.list_groups_for_user(UserName=username)
+            for group in groups['Groups']:
+                self.iam_client.remove_user_from_group(
+                    UserName=username,
+                    GroupName=group['GroupName']
+                )
+                
+            # Delete access keys
+            keys = self.iam_client.list_access_keys(UserName=username)
+            for key in keys['AccessKeyMetadata']:
+                self.iam_client.delete_access_key(
+                    UserName=username,
+                    AccessKeyId=key['AccessKeyId']
+                )
+                
+            # Detach policies
+            attached_policies = self.iam_client.list_attached_user_policies(UserName=username)
+            for policy in attached_policies['AttachedPolicies']:
+                self.iam_client.detach_user_policy(
+                    UserName=username,
+                    PolicyArn=policy['PolicyArn']
+                )
+                
+            # Finally delete the user
+            return self.iam_client.delete_user(UserName=username)
+            
         except Exception as e:
             return {'error': str(e)}
 
-    def explain_action(self, request: str) -> str:
-        """
-        Use OpenAI to explain what action will be taken before executing it.
-        Useful for confirming the intended action with users.
-        """
-        system_prompt = """
-        You are an AWS IAM expert. Explain what the following IAM request will do in simple terms.
-        Be concise but precise. Focus on the practical impact of the action.
-        """
-        
+    def _rotate_access_key(self, username: str) -> Dict:
+        """Create a new access key and delete the old one."""
         try:
-            response = self.openai_client.chat.completions.create(
-                model=config.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": request}
-                ],
-                temperature=0
-            )
+            # Create new key
+            new_key = self.iam_client.create_access_key(UserName=username)
             
-            return response.choices[0].message.content
+            # List and delete old keys
+            old_keys = self.iam_client.list_access_keys(UserName=username)
+            for key in old_keys['AccessKeyMetadata']:
+                if key['AccessKeyId'] != new_key['AccessKey']['AccessKeyId']:
+                    self.iam_client.delete_access_key(
+                        UserName=username,
+                        AccessKeyId=key['AccessKeyId']
+                    )
+                    
+            return new_key
             
         except Exception as e:
-            return f"Failed to explain request: {str(e)}"
+            return {'error': str(e)}

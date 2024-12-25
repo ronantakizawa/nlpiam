@@ -80,6 +80,55 @@ def show():
             masked_value = value[:4] + '*' * (len(value) - 8) + value[-4:] if len(value) > 8 else '****'
             click.echo(f"{key}: {masked_value}")
 
+@cli.group()
+def audit():
+    """Security audit commands"""
+    pass
+
+@audit.command()
+def mfa():
+    """Check for users without MFA"""
+    manager = NaturalLanguageIAMManager()
+    result = manager.execute_action('audit_mfa', {})
+    if 'error' in result:
+        click.echo(f"Error: {result['error']}", err=True)
+    else:
+        click.echo("MFA Audit Results:")
+        click.echo(f"Total Users: {result['total_users']}")
+        click.echo(f"Users with MFA: {result['users_with_mfa']}")
+        click.echo("Users without MFA:")
+        for user in result['users_without_mfa']:
+            click.echo(f"  - {user}")
+
+@audit.command()
+def keys():
+    """Check access key age and usage"""
+    manager = NaturalLanguageIAMManager()
+    result = manager.execute_action('audit_access_keys', {})
+    if 'error' in result:
+        click.echo(f"Error: {result['error']}", err=True)
+    else:
+        click.echo("Access Key Audit Results:")
+        click.echo("\nOld Keys (>90 days):")
+        for key in result['old_keys']:
+            click.echo(f"  - User: {key['username']}, Key: {key['key_id']}, Age: {key['age_days']} days")
+
+@audit.command()
+def admin():
+    """List users and roles with administrator access"""
+    manager = NaturalLanguageIAMManager()
+    result = manager.execute_action('audit_admin_users', {})
+    if 'error' in result:
+        click.echo(f"Error: {result['error']}", err=True)
+    else:
+        click.echo("Administrator Access Audit:")
+        click.echo("\nUsers with admin access:")
+        for user in result['admin_users']:
+            click.echo(f"  - {user}")
+        click.echo("\nRoles with admin access:")
+        for role in result['admin_roles']:
+            click.echo(f"  - {role}")
+
 def main():
     cli()
 

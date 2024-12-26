@@ -1,1 +1,10 @@
 .env
+# Ignore Python bytecode files
+__pycache__/
+*.py[cod]
+
+# Ignore egg files
+*.egg
+*.egg-info/
+dist/
+build/

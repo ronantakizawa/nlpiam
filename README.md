@@ -1,142 +1,142 @@
 # Natural Language IAM Manager (nlpiam)
 
-A powerful command-line tool that lets you manage AWS IAM using natural language commands. Powered by OpenAI's GPT models for natural language understanding.
+Manage AWS IAM using natural language commands. Powered by OpenAI's GPT models.
+
+## Quick Start
+```bash
+# Install
+pip install git+https://github.com/yourusername/nlpiam.git
+
+# Setup
+nlpiam setup
+
+# Start using
+nlpiam "Create a new user named john_doe"
+```
 
 ## Features
-
-- Natural language interface for AWS IAM management
-- User management (create, delete, list users)
-- Policy management (attach, detach policies)
-- Group management (create groups, add users)
-- Access key management (create, list, rotate keys)
-- Security auditing (MFA, access keys, admin access)
-- Command explanation before execution
-- Interactive confirmation for safety
+- Natural language interface for AWS IAM
+- Automatic credential management
+- Security auditing and best practices
+- Command previews and confirmations
+- Comprehensive error handling
 
 ## Installation
 
+1. Clone and install:
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/nlpiam.git
 cd nlpiam
-
-# Install the package
 pip install -e .
 ```
 
-## Configuration
-
-Set up your credentials using either method:
-
-1. Environment file:
+2. Run setup:
 ```bash
-# Create .env in your home directory
-echo "AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_DEFAULT_REGION=us-east-1
-OPENAI_API_KEY=your_openai_key" > ~/.env
-```
-
-2. CLI configuration:
-```bash
-nlpiam configure aws-access-key YOUR_KEY
-nlpiam configure aws-secret-key YOUR_SECRET
-nlpiam configure aws-region us-east-1
-nlpiam configure openai-key YOUR_OPENAI_KEY
+nlpiam setup
 ```
 
 ## Usage
 
-### Basic IAM Commands
+### IAM Commands
+Always use quotes for IAM commands:
 ```bash
-# Create a new user
-nlpiam iam "Create a new user named john_doe"
+# User Management
+nlpiam "Create a new user named john_doe"
+nlpiam "Add ReadOnlyAccess policy to john_doe"
+nlpiam "List all users"
 
-# Add a policy
-nlpiam iam "Add ReadOnlyAccess policy to john_doe"
+# Group Management
+nlpiam "Create a group named developers"
+nlpiam "Add john_doe to developers group"
 
-# Create a group and add user
-nlpiam iam "Create a new group named developers"
-nlpiam iam "Add john_doe to developers group"
-
-# List resources
-nlpiam iam "List all users"
-nlpiam iam "List access keys for john_doe"
+# Policy Management
+nlpiam "Add S3ReadOnly policy to developers group"
+nlpiam "Remove AdminAccess policy from john_doe"
 ```
 
 ### Security Audits
+No quotes needed for audit commands:
 ```bash
 # Check MFA status
 nlpiam audit mfa
 
-# Check access key age
+# Check access keys
 nlpiam audit keys
 
-# List users with admin access
+# Check admin access
 nlpiam audit admin
 ```
 
-### Command Explanation
+### Helper Commands
 ```bash
-# Explain what a command will do
+# Preview a command
 nlpiam explain "Add AdminAccess policy to john_doe"
+
+# Show configuration
+nlpiam config show
 ```
 
-## Running Tests
+## Available Commands
 
-The package includes comprehensive tests:
+### User Operations
+- Create user: `"Create a new user named {username}"`
+- Delete user: `"Delete user {username}"`
+- List users: `"List all users"`
 
-```bash
-# Run all tests
-python test.py
+### Policy Operations
+- Attach policy: `"Add {policy} policy to {username}"`
+- Detach policy: `"Remove {policy} policy from {username}"`
+- List policies: `"List all policies"`
 
-# Or run the individual test script
-python -m pytest src/test_iam_manager.py
-```
+### Group Operations
+- Create group: `"Create a group named {groupname}"`
+- Add to group: `"Add {username} to {groupname} group"`
+- List groups: `"List all groups"`
 
-## Common Commands Reference
-
-1. User Management:
-```bash
-nlpiam iam "Create a new user named {username}"
-nlpiam iam "Delete user {username}"
-nlpiam iam "Add {policy_name} policy to {username}"
-nlpiam iam "Remove {policy_name} policy from {username}"
-```
-
-2. Group Management:
-```bash
-nlpiam iam "Create a new group named {groupname}"
-nlpiam iam "Add {username} to {groupname} group"
-nlpiam iam "Add {policy_name} policy to {groupname} group"
-```
-
-3. Access Keys:
-```bash
-nlpiam iam "Create access key for {username}"
-nlpiam iam "List access keys for {username}"
-nlpiam iam "Rotate access key for {username}"
-```
-
-4. Security:
-```bash
-nlpiam audit mfa
-nlpiam audit keys
-nlpiam audit admin
-```
+### Access Key Operations
+- Create key: `"Create access key for {username}"`
+- List keys: `"List access keys for {username}"`
+- Rotate key: `"Rotate access key for {username}"`
 
 ## Security Best Practices
 
-1. Always review the command explanation before confirming execution
-2. Use the principle of least privilege when assigning permissions
-3. Regularly audit user access and permissions using the audit commands
-4. Rotate access keys periodically
-5. Enable MFA for all IAM users
+1. Always review command previews before confirming
+2. Run regular security audits:
+   ```bash
+   nlpiam audit mfa    # Check MFA status
+   nlpiam audit keys   # Check old access keys
+   nlpiam audit admin  # Check admin privileges
+   ```
+3. Use least privilege when assigning permissions
+4. Enable MFA for all users
+5. Rotate access keys regularly
+
+## Error Handling
+
+The tool provides clear feedback:
+- ✅ Success messages
+- ❌ Error details
+- ⚠️ Warning alerts
+- 📊 Audit results
+
+## Testing
+
+Run the test suite:
+```bash
+# All tests
+python test.py
+
+# Specific tests
+python test_specific.py
+```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file for details.

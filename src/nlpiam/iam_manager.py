@@ -17,26 +17,47 @@ class NaturalLanguageIAMManager:
         
         # Define the supported actions and their required parameters
         self.supported_actions = {
+            # User Management
             'create_user': ['username'],
             'delete_user': ['username'],
+            'list_users': [],
+            
+            # Policy Management
             'add_policy': ['username', 'policy_name'],
             'remove_policy': ['username', 'policy_name'],
-            'list_users': [],
             'list_policies': [],
+            
+            # Group Management
             'create_group': ['group_name'],
             'delete_group': ['group_name'],
             'add_user_to_group': ['username', 'group_name'],
             'remove_user_from_group': ['username', 'group_name'],
+            'list_groups': [],
+            'add_policy_to_group': ['group_name', 'policy_name'],
+            
+            # Access Key Management
             'create_access_key': ['username'],
             'list_access_keys': ['username'],
             'rotate_access_key': ['username'],
+            
+            # Security Audits
             'audit_mfa': [],
             'audit_access_keys': [],
             'audit_admin_users': []
         }
 
+        # Commands that should bypass OpenAI processing
+        self.special_commands = [
+            'setup', 'help', 'import-aws', 'config', 'show',
+            'audit mfa', 'audit keys', 'audit admin'
+        ]
+
     def parse_request(self, request: str) -> Tuple[str, Dict[str, str]]:
         """Parse natural language request using OpenAI API."""
+        # Check if this is a special command that should bypass processing
+        if request.lower() in self.special_commands:
+            return 'special_command', {'command': request.lower()}
+
         system_prompt = """
         You are an AWS IAM expert that helps parse natural language requests into structured commands.
         Return a JSON object with:
@@ -48,6 +69,7 @@ class NaturalLanguageIAMManager:
         - "Add ReadOnlyAccess policy to john_doe" -> {"action": "add_policy", "params": {"username": "john_doe", "policy_name": "ReadOnlyAccess"}}
         - "Add policy ReadOnlyAccess to group developers" -> {"action": "add_policy_to_group", "params": {"group_name": "developers", "policy_name": "ReadOnlyAccess"}}
         - "Create access key for john_doe" -> {"action": "create_access_key", "params": {"username": "john_doe"}}
+        - "List all users" -> {"action": "list_users", "params": {}}
         """
 
         try:
@@ -79,17 +101,12 @@ class NaturalLanguageIAMManager:
         except Exception as e:
             raise ValueError(f"Failed to parse request: {str(e)}")
 
-    def process_request(self, request: str) -> Dict:
-        """Process a natural language request from start to finish."""
-        try:
-            action, params = self.parse_request(request)
-            result = self.execute_action(action, params)
-            return result
-        except Exception as e:
-            return {'error': str(e)}
-
     def explain_action(self, request: str) -> str:
         """Use OpenAI to explain what action will be taken."""
+        # Skip explanation for special commands
+        if request.lower() in self.special_commands:
+            return f"Execute the {request} command"
+
         try:
             response = self.openai_client.chat.completions.create(
                 model=config.OPENAI_MODEL,
